@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azumanga Daioh - AMOLED Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Temel sayfa stili */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000000;
+            color: #e5e7eb; /* gray-200 */
+        }
+
+        /* Video oynatıcı için en-boy oranını koruma */
+        .player-wrapper {
+            position: relative;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            width: 100%;
+            background-color: #000;
+        }
+        .player-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Yatay kaydırma çubuğu stilleri */
+        .episode-slider::-webkit-scrollbar {
+            height: 8px;
+        }
+        .episode-slider::-webkit-scrollbar-track {
+            background: #1f2937; /* gray-800 */
+            border-radius: 10px;
+        }
+        .episode-slider::-webkit-scrollbar-thumb {
+            background: #4b5563; /* gray-600 */
+            border-radius: 10px;
+        }
+        .episode-slider::-webkit-scrollbar-thumb:hover {
+            background: #6b7280; /* gray-500 */
+        }
+        
+        /* Aktif bölüm kartı stili */
+        .active-episode-card {
+            border-color: #F59E0B; /* amber-500 */
+            background-color: #374151; /* gray-700 */
+            transform: scale(1.05);
+        }
+
+        /* Dil butonu stili */
+        .active-lang {
+            background-color: #F59E0B;
+            color: #111827; /* gray-900 */
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen">
+
+    <!-- Video Oynatıcı Alanı -->
+    <div id="video-container" class="w-full shadow-lg">
+        <div class="player-wrapper">
+            <iframe id="video-player" 
+                    src="" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen>
+            </iframe>
+        </div>
+    </div>
+
+    <!-- Kontrol Paneli ve Bölüm Kaydırgacı -->
+    <div class="flex-grow flex flex-col p-4 md:p-6 space-y-4">
+        <!-- Bölüm Bilgileri ve Dil Seçimi -->
+        <div class="flex flex-col md:flex-row justify-between md:items-center gap-4">
+            <div>
+                <h1 id="episode-title" class="text-2xl lg:text-3xl font-bold text-white">Bölüm Yükleniyor...</h1>
+                <p id="episode-description" class="text-gray-400 mt-1 text-sm md:text-base">Lütfen bir bölüm seçin.</p>
+            </div>
+            <div class="flex space-x-2 flex-shrink-0">
+                <button id="lang-tr" class="px-4 py-2 text-sm font-medium bg-gray-800 rounded-md hover:bg-amber-600 transition-all duration-200">Türkçe</button>
+                <button id="lang-en" class="px-4 py-2 text-sm font-medium bg-gray-800 rounded-md hover:bg-amber-600 transition-all duration-200">İngilizce</button>
+            </div>
+        </div>
+
+        <!-- Bölüm Kaydırgacı -->
+        <div id="episode-slider" class="episode-slider flex items-stretch gap-3 overflow-x-auto pb-4">
+            <!-- Bölüm kartları JavaScript ile buraya eklenecek -->
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Element referansları
+            const player = document.getElementById('video-player');
+            const episodeSlider = document.getElementById('episode-slider');
+            const episodeTitle = document.getElementById('episode-title');
+            const episodeDescription = document.getElementById('episode-description');
+            const btnTr = document.getElementById('lang-tr');
+            const btnEn = document.getElementById('lang-en');
+
+            // Uygulama durumu
+            let currentLanguage = 'tr';
+            let currentEpisodeIndex = 0;
+
+            // Bölüm verileri
+            const episodes = [
+                { episode: 1, title: "Liseli Çocuk", description: "Yeni okul yılı başlar ve 10 yaşındaki dahi Chiyo-chan liseye başlar. Ana karakterlerle tanışıyoruz.", tr_id: "2aMrp2d0_2A", en_id: "H3b24G4p2G8" },
+                { episode: 2, "title": "Osaka Günü", description: "Osaka'dan yeni bir transfer öğrenci olan Ayumu Kasuga, nam-ı diğer Osaka, sınıfa katılır ve kendine has havasıyla herkesi şaşırtır.", tr_id: "Zg0H7p0yJ7c", en_id: "h820Hwz5S_c" },
+                { episode: 3, "title": "Nyamo", description: "Karakterlerimiz, öğretmenleri Nyamo'nun beklenmedik yönlerini keşfederler. Sakaki'nin kedilere olan sevgisi devam eder.", tr_id: "tqijMu4sS_4", en_id: "3fBVEhS2XmU" },
+                { episode: 4, "title": "Yüzme Havuzu", description: "Yaz gelmiştir ve grup yüzme dersi için havuza gider. Tomo'nun rekabetçi ruhu yine ön plandadır.", tr_id: "v-A0Y2PqS9w", en_id: "XhN2nC-A6J0" },
+                { episode: 5, "title": "Yaz Tatili", description: "Yaz tatili maceraları! Grup, Chiyo'nun yazlık evine gider ve deniz kenarında eğlenceli anlar yaşar.", tr_id: "Kz38yrecT4c", en_id: "uKIFpS154b4" },
+                { episode: 6, "title": "Spor Festivali", description: "Okulun spor festivali zamanı. Herkes kendi yeteneklerine göre yarışmalara katılır ve komik olaylar yaşanır.", tr_id: "14B5oD05o3g", en_id: "x_ycQfT2j3o" },
+                { episode: 7, "title": "Kültür Festivali", description: "Kültür festivali hazırlıkları başlar. Sınıfça bir kafe açmaya karar verirler ve Sakaki kedi kostümü giyer.", tr_id: "16xQEiXW3qA", en_id: "9mPu8gW2a5c" },
+                { episode: 8, "title": "Osaka'nın Rüyaları", description: "Osaka'nın tuhaf ve komik rüyalarına tanık oluyoruz. Chiyo-chan'ın örgüleri hakkında ilginç teoriler üretir.", tr_id: "2rB5ZkIuYdM", en_id: "jMOK4fCgNSo" },
+                { episode: 9, "title": "Dokunulmaz Chiyo-chan", description: "Chiyo-chan'ın sevimliliği ve masumiyeti, onu okulda adeta dokunulmaz yapar. Sakaki ise hala bir kediyle arkadaş olmaya çalışır.", tr_id: "bIeD-x1bUq4", en_id: "l4irb51peoE" },
+                { episode: 10, "title": "Yukari'nin Arabası", description: "Öğretmenleri Yukari, yeni aldığı arabasıyla ortalığı birbirine katar. Öğrencilerle tehlikeli bir yolculuğa çıkarlar.", tr_id: "t4L7-h7BvYo", en_id: "GqE_wPEz0TU" },
+                { episode: 11, "title": "Kedi ve Yeni Yıl", description: "Sakaki, Iriomote Dağ Kedisi'ne hayran kalır. Yeni yıl kutlamaları ve gelenekleri konu alınır.", tr_id: "97f2Ld50yS4", en_id: "x5D9YFEntkY" },
+                { episode: 12, "title": "Chiyo'nun Günü", description: "Bu bölümde olaylar daha çok Chiyo-chan'ın etrafında döner. Onun günlük yaşamına ve arkadaşlarıyla ilişkilerine odaklanılır.", tr_id: "97f2Ld50yS4", en_id: "x5D9YFEntkY" },
+                { episode: 13, "title": "Sınav Zamanı", description: "Final sınavları yaklaşırken herkes ders çalışmaya odaklanır, tabii ki kendi yöntemleriyle.", tr_id: "t4L7-h7BvYo", en_id: "GqE_wPEz0TU" },
+                { episode: 14, "title": "Yazlık Ev Tekrar", description: "Grup, ikinci kez Chiyo'nun yazlık evine gider ve yeni maceralar yaşar.", tr_id: "Kz38yrecT4c", en_id: "uKIFpS154b4" },
+                { episode: 15, "title": "İkinci Spor Festivali", description: "İkinci yıllarındaki spor festivali, ilkine göre daha da heyecanlı ve rekabetçi geçer.", tr_id: "14B5oD05o3g", en_id: "x_ycQfT2j3o" },
+                { episode: 16, "title": "İkinci Kültür Festivali", description: "Bu yılki kültür festivalinde sınıf, içi doldurulmuş hayvanlarla dolu bir etkinlik düzenler.", tr_id: "16xQEiXW3qA", en_id: "9mPu8gW2a5c" },
+                { episode: 17, "title": "Osaka'nın Hayalet Hikayeleri", description: "Osaka, korkunç olması gereken ama komik olan hayalet hikayeleri anlatır.", tr_id: "2rB5ZkIuYdM", en_id: "jMOK4fCgNSo" },
+                { episode: 18, "title": "Yomi'nin Diyeti", description: "Yomi, kilo verme mücadelesine girer ancak Tomo'nun sataşmaları işini zorlaştırır.", tr_id: "bIeD-x1bUq4", en_id: "l4irb51peoE" },
+                { episode: 19, "title": "Kış Mevsimi", description: "Kış gelir ve karakterlerimiz karla oynar, soğuk havanın tadını çıkarır.", tr_id: "t4L7-h7BvYo", en_id: "GqE_wPEz0TU" },
+                { episode: 20, "title": "Üçüncü Yıl", description: "Artık son sınıf öğrencisi olan grup, gelecekleri ve üniversite sınavları hakkında düşünmeye başlar.", tr_id: "97f2Ld50yS4", en_id: "x5D9YFEntkY" },
+                { episode: 21, "title": "Gezi Zamanı", description: "Okul gezisi için Okinawa'ya giderler. Sakaki, sonunda bir kediyle yakınlaşma fırsatı bulur.", tr_id: "2aMrp2d0_2A", en_id: "H3b24G4p2G8" },
+                { episode: 22, "title": "Mezuniyet Öncesi", description: "Mezuniyet yaklaşırken herkes hüzünlü ve heyecanlıdır. Lise anılarını yad ederler.", tr_id: "Zg0H7p0yJ7c", en_id: "h820Hwz5S_c" },
+                { episode: 23, "title": "Üniversite Sınavları", description: "Herkes üniversiteye giriş sınavlarına hazırlanır. Kaorin'in Sakaki'ye olan hayranlığı zirve yapar.", tr_id: "tqijMu4sS_4", en_id: "3fBVEhS2XmU" },
+                { episode: 24, "title": "Kariyer Yolları", description: "Sınav sonuçları açıklanır ve herkes kendi yolunu çizer. Gelecek planları yapılır.", tr_id: "v-A0Y2PqS9w", en_id: "XhN2nC-A6J0" },
+                { episode: 25, "title": "Son Bakış", description: "Mezuniyet töreni öncesi son hazırlıklar yapılır. Grup, lisedeki son günlerinin tadını çıkarır.", tr_id: "Kz38yrecT4c", en_id: "uKIFpS154b4" },
+                { episode: 26, "title": "Mezuniyet", description: "Veda zamanı. Grup liseden mezun olur ve duygusal bir törenle birbirlerine veda ederler.", tr_id: "14B5oD05o3g", en_id: "x_ycQfT2j3o" },
+            ];
+
+            // Bölüm kaydırgacını oluşturan fonksiyon
+            function renderEpisodeSlider() {
+                episodeSlider.innerHTML = '';
+                episodes.forEach((episode, index) => {
+                    const card = document.createElement('button');
+                    card.dataset.index = index;
+                    card.className = "episode-card flex-shrink-0 w-48 p-3 rounded-lg border-2 border-gray-700 bg-gray-900 hover:border-amber-500 focus:outline-none focus:border-amber-500 transition-all duration-300 ease-in-out text-left";
+                    card.innerHTML = `
+                        <p class="font-bold text-white">Bölüm ${episode.episode}</p>
+                        <p class="text-sm text-gray-400 truncate">${episode.title}</p>
+                    `;
+                    card.addEventListener('click', () => {
+                        loadEpisode(index);
+                    });
+                    episodeSlider.appendChild(card);
+                });
+            }
+
+            // Belirli bir bölümü yükleyen fonksiyon
+            function loadEpisode(index) {
+                if (index < 0 || index >= episodes.length) return;
+
+                currentEpisodeIndex = index;
+                const episode = episodes[index];
+                
+                const videoId = currentLanguage === 'tr' ? episode.tr_id : episode.en_id;
+                player.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&color=white&modestbranding=1`;
+
+                episodeTitle.textContent = `Bölüm ${episode.episode}: ${episode.title}`;
+                episodeDescription.textContent = episode.description;
+
+                updateActiveEpisodeHighlight();
+            }
+            
+            // Aktif bölüm kartını vurgulayan fonksiyon
+            function updateActiveEpisodeHighlight() {
+                const allCards = episodeSlider.querySelectorAll('.episode-card');
+                allCards.forEach((card, idx) => {
+                    if (idx === currentEpisodeIndex) {
+                        card.classList.add('active-episode-card');
+                        // Aktif kartı görünür alana kaydır
+                        card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    } else {
+                        card.classList.remove('active-episode-card');
+                    }
+                });
+            }
+
+            // Dil değiştirme fonksiyonu
+            function switchLanguage(lang) {
+                currentLanguage = lang;
+                
+                btnTr.classList.toggle('active-lang', lang === 'tr');
+                btnEn.classList.toggle('active-lang', lang === 'en');
+                
+                loadEpisode(currentEpisodeIndex);
+            }
+
+            // Başlangıç fonksiyonu
+            function init() {
+                renderEpisodeSlider();
+                switchLanguage('tr'); // Türkçe ile başla
+                loadEpisode(0); // İlk bölümü yükle
+            }
+
+            // Olay dinleyicileri
+            btnTr.addEventListener('click', () => switchLanguage('tr'));
+            btnEn.addEventListener('click', () => switchLanguage('en'));
+
+            init();
+        });
+    </script>
+
+</body>
+</html>
+
